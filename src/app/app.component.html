@@ -55,6 +55,14 @@
       </p>
     </div>
   </form>
+  <hr/>
+  <h1 class="title" *ngIf="documents.length > 0">Existing Documents</h1>
+  <table class="table">
+    <tr *ngFor="let entry of documents">
+      <td>{{entry.description}}</td>
+      <td><a href="http://localhost:8500/bzzr:/{{entry.hash}}/">Download</a></td>
+    </tr>
+  </table>
 
   <strong>Hint:</strong> open the browser developer console to view any errors and warnings.
 

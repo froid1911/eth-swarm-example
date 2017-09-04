@@ -9,6 +9,10 @@ const documentManagement = require('../../build/contracts/DocumentManagement.jso
 declare var window: any;
 declare var buffer: any;
 
+interface DocumentEntry {
+  hash: string;
+  description: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -23,6 +27,8 @@ export class AppComponent {
   web3: any;
   bzz: any;
   hash: string;
+
+  documents: DocumentEntry[] = [];
 
   balance: number;
   sendingFile: File;
@@ -41,9 +47,22 @@ export class AppComponent {
   }
 
   checkAndInstantiateWeb3 = () => {
-    this.web3 = new Web3(
-      new Web3.providers.HttpProvider('http://localhost:8545')
-    );
+    // Checking if Web3 has been injected by the browser (Mist/MetaMask)
+    if (typeof window.web3 !== 'undefined') {
+      console.warn(
+        'Using web3 detected from external source. If you find that your accounts don\'t appear or you have 0 MetaCoin, ensure you\'ve configured that source properly. If using MetaMask, see the following link. Feel free to delete this warning. :) http://truffleframework.com/tutorials/truffle-and-metamask'
+      );
+      // Use Mist/MetaMask's provider
+      this.web3 = new Web3(window.web3.currentProvider);
+    } else {
+      console.warn(
+        'No web3 detected. Falling back to http://localhost:8545. You should remove this fallback when you deploy live, as it\'s inherently insecure. Consider switching to Metamask for development. More info here: http://truffleframework.com/tutorials/truffle-and-metamask'
+      );
+      // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
+      this.web3 = new Web3(
+        new Web3.providers.HttpProvider('http://localhost:8545')
+      );
+    }
   };
 
   onReady = () => {
@@ -76,6 +95,24 @@ export class AppComponent {
       );
     });
   };
+  transformDocuments = (length) => {
+    if (length === 0) {
+      return;
+    }
+    this.DocumentManagement
+      .deployed()
+      .then(instance => {
+        for (let i = 0; i < length; i++) {
+          instance.getDocument.call(i, {from: this.account}).then(val => {
+            console.log(val);
+            this.documents.push({
+              hash: val[0],
+              description: val[1]
+            });
+          });
+        }
+      });
+  };
 
   refreshDocuments = () => {
     let dm;
@@ -83,9 +120,9 @@ export class AppComponent {
       .deployed()
       .then(instance => {
         dm = instance;
-        console.log(this.account);
-        return dm.getDocuments({from: this.account}).then((value) => {
-          console.log(value.result);
+        return dm.getDocumentsLength.call({from: this.account}).then((value) => {
+          this.documents = [];
+          this.transformDocuments(value.toNumber());
         });
       })
       .catch(e => {
@@ -105,16 +142,14 @@ export class AppComponent {
 
     this.DocumentManagement.deployed().then(instance => {
       dm = instance;
-
+      console.log(instance);
       const reader = new FileReader();
       reader.onloadend = () => {
         const buf = buffer.Buffer(reader.result) // Convert data into buffer
         this.bzz.upload(buf).then((data) => {
-          console.log(this.account, data);
-          return dm.addDocument(data, {from: this.account});
+          return dm.addDocument(data, this.fileDescription, {from: this.account});
         }).then((result) => {
           this.refreshDocuments();
-          console.log(result.args);
           this.setStatus('Transaction completed.');
         });
       }

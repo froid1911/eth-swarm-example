@@ -4,32 +4,30 @@ pragma solidity ^0.4.8;
 contract DocumentManagement {
 
     mapping (address => string[]) documents;
+    mapping (address => string[]) descriptions;
 
-    event DocumentAdded(string indexed hash);
+    event DocumentAdded(string hash, string description, uint indexed id);
 
     function DocumentManagement() {
 
     }
 
-    function addDocument(string _hash) returns (bool succcess) {
-        if (hashExists(msg.sender, _hash)) {
+    function addDocument(string _hash, string _description) returns (bool succcess) {
+      uint length = getDocumentsLength();
+      if (hashExists(msg.sender, _hash)) {
             return false;
-        }
-        documents[msg.sender].push(_hash);
+      }
 
-        DocumentAdded(_hash);
+      documents[msg.sender].push(_hash);
+      descriptions[msg.sender].push(_description);
 
-        return true;
+      DocumentAdded(_hash, _description, length);
+
+      return true;
     }
 
-    function getDocuments() returns (bytes32[] hashes) {
-        uint _count = documents[msg.sender].length;
-        bytes32[] memory _hashes = new bytes32[](_count);
-        for (uint i = 0; i < _count; i++) {
-            _hashes[i] = stringToBytes32(documents[msg.sender][i]);
-        }
-
-        return _hashes;
+    function getDocumentsLength() returns (uint length) {
+        return documents[msg.sender].length;
     }
 
     function hashExists(address _user, string _hash) internal returns (bool success) {
@@ -54,11 +52,8 @@ contract DocumentManagement {
         return true;
     }
 
-        function stringToBytes32(string memory source) internal returns (bytes32 result)  {
-        assembly {
-        result := mload(add(source, 32))
-        }
-        }
-
+    function getDocument(uint _index) returns (string hash, string description) {
+        return (documents[msg.sender][_index], descriptions[msg.sender][_index]);
+    }
 
 }
